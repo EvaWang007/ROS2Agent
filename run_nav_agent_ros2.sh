@@ -19,4 +19,12 @@ source "$WS/install/setup.bash"
 
 export PYTHONPATH="$ROOT/src:${PYTHONPATH:-}"
 
+# Local Clash-Verge HTTP mixed port (override: export ROSA_HTTP_PROXY_URL=http://127.0.0.1:PORT)
+ROSA_HTTP_PROXY_URL="${ROSA_HTTP_PROXY_URL:-http://127.0.0.1:7897}"
+export HTTP_PROXY="$ROSA_HTTP_PROXY_URL" HTTPS_PROXY="$ROSA_HTTP_PROXY_URL"
+export http_proxy="$ROSA_HTTP_PROXY_URL" https_proxy="$ROSA_HTTP_PROXY_URL"
+export ALL_PROXY="$ROSA_HTTP_PROXY_URL" all_proxy="$ROSA_HTTP_PROXY_URL"
+export NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1}"
+export no_proxy="${no_proxy:-localhost,127.0.0.1,::1}"
+
 exec "$ROSA_PY" "$AGENT_BIN"

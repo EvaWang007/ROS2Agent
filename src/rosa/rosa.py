@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 from __future__ import annotations
+import os
 import logging
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, Literal, Optional, Union
@@ -33,6 +34,22 @@ from .tool_trace_logger import (
     new_query_id,
     set_trace_query_id,
 )#工具调用日志记录器和相关函数
+
+from .embeddings import embeddings_enabled, get_embedding_encoder
+from .memory_hybrid import (
+    enrich_memory_for_write,
+    format_retrieved_for_prompt,
+    hybrid_retrieve,
+)
+from .memory_meta import extract_query_meta, extract_tags_from_text
+from .memory_store import (
+    append_memory,
+    make_fact_memories,
+    make_summary_memory,
+    retrieve_memories,
+    score_lexical,
+)
+
 
 
 
@@ -117,6 +134,7 @@ class ROSA:
         self.__llm = llm.with_config({"streaming": streaming})
         self.__memory_key = "chat_history"
         self.__scratchpad = "agent_scratchpad"
+        self.__long_term_context = "long_term_context"
         self.__blacklist = blacklist if blacklist else []
         self.__accumulate_chat_history = accumulate_chat_history
         self.__streaming = streaming
@@ -130,7 +148,13 @@ class ROSA:
         self.__trace_loggers = get_trace_loggers()
         self.__trace_handler = ToolTraceCallbackHandler(self.__trace_loggers)
         self.__executor = self._get_executor(verbose=verbose)
-        
+        self.__memory_enabled = os.getenv("ROSA_MEMORY_ENABLED", "1") == "1"
+        self.__memory_path = os.getenv(
+            "ROSA_MEMORY_PATH",
+            os.path.join("nav_ws", "logs", "long_term_memory.jsonl"),
+      )
+        self.__memory_top_k = int(os.getenv("ROSA_MEMORY_TOP_K", "3"))
+
         # cache this check - no need to do isinstance on every invoke
         self.__supports_token_tracking = isinstance(llm, (ChatOpenAI, AzureChatOpenAI))
         self.__show_token_usage = show_token_usage if not streaming else False
@@ -152,6 +176,90 @@ class ROSA:
     def clear_chat(self):
         """Clear the chat history."""
         self.__chat_history = []
+
+    def _retrieve_long_term_context(self, query: str) -> str:
+        #根据用户当前 query，从长期 memory 中检索相关上下文，然后格式化成 prompt 片段
+        if not self.__memory_enabled:
+            return "(Long-term memory disabled.)"
+        mode = os.getenv("ROSA_MEMORY_MODE", "hybrid").lower().strip()
+        scene = os.getenv("ROSA_MEMORY_SCENE_ID") or None
+        robot = os.getenv("ROSA_MEMORY_ROBOT_ID") or None
+        top = max(1, self.__memory_top_k)
+
+        if mode == "lexical":#纯文本检索
+            hits_raw = retrieve_memories(self.__memory_path, query, top_k=top)
+            hits = []
+            for h in hits_raw:
+                hh = dict(h)
+                hh["_score_final"] = score_lexical(query, h.get("content", ""))
+                hits.append(hh)
+            return format_retrieved_for_prompt(hits, max_lines=max(3, top))
+
+        q_emb = None # hybrid 检索的 query embedding，纯向量检索和 hybrid 都会用到
+        if embeddings_enabled():
+            try:
+                enc = get_embedding_encoder()
+                if enc.is_available():
+                    q_emb = enc.encode(query)
+            except Exception as e:
+                logger.warning("Query embedding skipped: %s", e)
+
+        hits = hybrid_retrieve(#hits是用户query做完嵌入带上标签信息的组合，这个组合进入hybrid_retrieve函数后会根据用户query的文本和向量信息进行检索打分，最后返回一个带有最终得分的组合列表topk
+            self.__memory_path,
+            query,
+            q_emb,
+            top_k=top,
+            scene_id=scene,
+            robot_id=robot,
+        )
+        return format_retrieved_for_prompt(hits, max_lines=max(3, top))
+
+    def _persist_long_term_memories(self, query: str, output: str) -> None:
+        if not self.__memory_enabled:#看是否启用长期记忆功能
+            return
+        scene = os.getenv("ROSA_MEMORY_SCENE_ID") or None
+        robot = os.getenv("ROSA_MEMORY_ROBOT_ID") or None
+        meta = extract_query_meta(query)
+        domain = meta.get("domain")
+        tags = extract_tags_from_text(f"{query}\n{output}")
+
+        enc = None
+        if embeddings_enabled():
+            try:
+                candidate = get_embedding_encoder()
+                if candidate.is_available():
+                    enc = candidate
+            except Exception as e:
+                logger.warning("Memory write embeddings skipped: %s", e)
+
+        def maybe_embed(text: str):
+            if enc is None:
+                return None
+            try:
+                return enc.encode(text)
+            except Exception:
+                return None
+
+        summary = make_summary_memory(query, output)
+        row = enrich_memory_for_write(
+            summary,
+            embedding=maybe_embed(summary["content"]),
+            scene_id=scene,
+            robot_id=robot,
+            domain=domain,
+            tags=tags,
+        )
+        append_memory(self.__memory_path, row)
+        for fact in make_fact_memories(query, output):
+            row_f = enrich_memory_for_write(
+                fact,
+                embedding=maybe_embed(fact["content"]),
+                scene_id=scene,
+                robot_id=robot,
+                domain=domain,
+                tags=tags,
+            )
+            append_memory(self.__memory_path, row_f)
 
     def invoke(self, query: str) -> str:
         """
@@ -180,11 +288,18 @@ class ROSA:
             self.__trace_loggers["session"],
             {"event": "query_start", "query_id": query_id, "query": query},
         )
+    
 
+
+        long_term = self._retrieve_long_term_context(query)
         try:
             with self._token_callback() as cb:
                 result = self.__executor.invoke(
-                    {"input": query, "chat_history": self.__chat_history},
+                    {
+                        "input": query,
+                        "chat_history": self.__chat_history,
+                        self.__long_term_context: long_term,
+                    },
                     config={
                         "callbacks": [self.__trace_handler],
                         "metadata": {"query_id": query_id},
@@ -210,6 +325,7 @@ class ROSA:
             },
         )
         self._record_chat_history(query, result["output"])
+        self._persist_long_term_memories(query, result["output"])
         return result["output"]
 
 
@@ -246,14 +362,27 @@ class ROSA:
                 "Streaming is not enabled. Use 'invoke' method instead or initialize ROSA with streaming=True."
             )
 
+        query_id = new_query_id()
+        set_trace_query_id(query_id)
+        log_json(
+            self.__trace_loggers["session"],
+            {"event": "query_start", "query_id": query_id, "query": query},
+        )
+
         try:
             final_output = ""
+            long_term = self._retrieve_long_term_context(query)
             # Stream events from the agent's response
             async for event in self.__executor.astream_events(
-                input={"input": query, "chat_history": self.__chat_history},
+                input={
+                    "input": query,
+                    "chat_history": self.__chat_history,
+                    self.__long_term_context: long_term,
+                },
                config={
                    "run_name": "Agent",
                    "callbacks": [self.__trace_handler],
+                   "metadata": {"query_id": query_id},
                 },
 
                 version="v2",
@@ -297,10 +426,23 @@ class ROSA:
 
             if final_output:
                 self._record_chat_history(query, final_output)
+                self._persist_long_term_memories(query, final_output)
+                log_json(
+                    self.__trace_loggers["session"],
+                    {
+                        "event": "query_end",
+                        "query_id": query_id,
+                        "response_preview": final_output[:120],
+                    },
+                )
         except KeyboardInterrupt:
             # Re-raise KeyboardInterrupt so it can be handled upstream
             yield {"type": "error", "content": "Operation interrupted by user"}
         except Exception as e:
+            log_json(
+                self.__trace_loggers["session"],
+                {"event": "query_error", "query_id": query_id, "error": str(e)},
+            )
             yield {"type": "error", "content": f"An error occurred: {e}"}
 
 
@@ -372,8 +514,13 @@ class ROSA:
             prompts
             + [
                 MessagesPlaceholder(variable_name=self.__memory_key),
-                ("user", "{input}"),#短期记忆，包含之前的对话历史
-                MessagesPlaceholder(variable_name=self.__scratchpad),#模型在这一轮里已经调用过哪些工具、工具返回了什么 observation，这些中间痕迹会被塞到这里，再让模型继续往下推。
+                (
+                    "system",
+                    "Retrieved long-term memories from prior sessions (verify critical facts with live tools):\n"
+                    "{long_term_context}",
+                ),
+                ("user", "{input}"),
+                MessagesPlaceholder(variable_name=self.__scratchpad),
             ]
         )
         return template

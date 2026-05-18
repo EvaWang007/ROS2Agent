@@ -41,7 +41,12 @@ dependencies = [
 [project.optional-dependencies]
 anthropic = ["langchain-anthropic~=0.3.12"]
 ollama = ["langchain-ollama~=0.3.2"]
-all = ["langchain-anthropic~=0.3.12", "langchain-ollama~=0.3.2"]
+memory = ["sentence-transformers>=2.2.0"]
+all = [
+    "langchain-anthropic~=0.3.12",
+    "langchain-ollama~=0.3.2",
+    "sentence-transformers>=2.2.0",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/nasa-jpl/rosa"
