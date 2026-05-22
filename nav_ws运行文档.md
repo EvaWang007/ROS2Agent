@@ -23,6 +23,48 @@ Get one scan snapshot.
 9:00 PM
 
 
+
+## 启动YOLO检测
+```bash
+source /opt/ros/humble/setup.bash
+source /home/evawang/Downloads/rosa-main/nav_ws/install/setup.bash
+ros2 run nav_agent_ros2 yolo_detector
+```
+
+新开一个终端再执行查看：
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/evawang/Downloads/rosa-main/nav_ws/install/setup.bash
+ros2 topic echo /perception/detections_text
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 对，完全可以这样理解。
 
 更准确一点是：
