@@ -1,5 +1,6 @@
 ## GNN（Graph Neural Network）原理
   给定一个图 G=(V,E)，每个节点有特征 x_v，边表示“谁影响谁/谁和谁有关”，模型让每个节点反复从邻居那里收消息，聚合，再更新自己的表示。
+  
 ***🍇核心形式***
 第 k 层通常写成：
 ```
@@ -11,6 +12,7 @@ h_v^{k+1} = UPDATE(h_v^k, AGGREGATE({h_u^k : u in N(v)}))
 其中 h_v 是节点表示，N(v) 是邻居集合。堆 K 层后，节点 v 的表示包含了 K-hop 邻域信息。***这就是 GNN 的核心：不是把图摊平成序列，而是让信息沿边传播***。
 
 ***🍇常见任务***
+
 GNN 常见任务分三类：
 ```
 节点级：论文分类、用户风险识别、关键节点识别。
@@ -27,7 +29,9 @@ GNN 直接告诉模型：信息主要沿这些边流动。
 
 ## GCN（Graph Convolutional Network）原理
 GNN 的核心都是节点间信息传递，但“怎么传、怎么聚合、怎么加权”可以有很多设计。
+
 所以GCN可以理解为GNN中间节点与节点之间的关系传递关系为卷积神经网络
+
 可以这样理解，但要稍微改得更准确一点：
 
 > **GCN 是 GNN 中一种用“图卷积”方式来进行节点间信息传递和聚合的模型。**
@@ -968,7 +972,177 @@ AUV1 自身状态
 GNN 能在一定程度上解决 EKF 的误差积累，是因为它把水下定位从“单 AUV 基于运动模型的递推估计”转化为“多 AUV、多传感器、多关系的图结构信息融合”。它通过消息传递学习节点间约束，通过非线性网络减少手工建模和线性化误差，通过横向协同关系削弱单体漂移，因此能比 EKF 更好地抑制长期定位误差。但普通 GNN 仍不能完全解决时间累积问题，所以论文进一步使用 TGNN 和联邦 TGNN 来增强时间建模和全局鲁棒性。
 
 
+## 检索词
+可以用下面这些关键词组合去搜，建议中英文都搜。你的目标方向本质上是：
 
+```text
+水下 AUV 协同定位 + 多传感器融合 + 声学测距/时延 + 图神经网络/深度学习
+```
+
+**最核心英文关键词**
+
+```text
+AUV cooperative localization
+underwater cooperative localization
+multi-AUV cooperative localization
+underwater multi-sensor fusion localization
+AUV acoustic ranging localization
+AUV acoustic time delay localization
+AUV time of arrival localization
+underwater acoustic time delay estimation localization
+AUV INS DVL acoustic localization
+AUV inertial acoustic fusion localization
+```
+
+**如果想搜 GNN 方向**
+
+```text
+graph neural network underwater localization
+GNN AUV cooperative localization
+graph neural network AUV localization
+graph neural network multi-sensor fusion localization
+graph neural network acoustic localization
+spatio-temporal graph neural network underwater localization
+temporal graph neural network AUV localization
+federated graph neural network AUV localization
+```
+
+**如果想搜“和赵书音论文很像”的方向**
+
+```text
+AUV cooperative localization graph neural network acoustic ranging
+underwater cooperative localization GNN acoustic delay
+multi-AUV localization graph neural network time delay
+AUV localization multi-source heterogeneous data fusion GNN
+underwater acoustic cooperative localization temporal graph neural network
+federated temporal graph neural network cooperative localization
+```
+
+**如果想搜 EKF/GNN 对比或融合**
+
+```text
+AUV cooperative localization EKF GNN
+AUV localization EKF deep learning
+underwater localization neural network EKF
+AUV INS DVL acoustic EKF neural network
+learning-based cooperative localization AUV
+deep learning aided EKF AUV localization
+KalmanNet underwater localization
+neural Kalman filter AUV localization
+```
+
+**如果想搜声学时延/测距**
+
+```text
+underwater acoustic ranging localization
+underwater acoustic time-of-arrival localization
+underwater acoustic time delay localization
+single beacon AUV localization
+range-only AUV localization
+LBL AUV localization
+USBL AUV localization
+SINS LBL AUV localization
+INS acoustic ranging fusion AUV
+```
+
+**中文关键词**
+
+```text
+AUV 协同定位
+水下协同定位
+多 AUV 协同定位
+水下多传感器融合定位
+AUV 声学测距定位
+AUV 声学时延定位
+水声时延定位
+水声测距 协同定位
+AUV 惯性 声学 融合定位
+AUV INS DVL 声学定位
+```
+
+**中文 + GNN 方向**
+
+```text
+图神经网络 水下协同定位
+图神经网络 AUV 定位
+时序图神经网络 AUV 协同定位
+联邦图神经网络 水下定位
+GNN 水声定位
+GNN 多传感器融合定位
+图神经网络 多源异构信息融合 AUV
+```
+
+**中文 + 传统方法对比**
+
+```text
+EKF AUV 协同定位
+扩展卡尔曼滤波 水下协同定位
+因子图 AUV 协同定位
+AUV 声学测距 EKF
+AUV 惯性 声学组合导航
+AUV 多源信息融合定位
+```
+
+**推荐你优先用的搜索式**
+
+如果在 Google Scholar / IEEE Xplore / Web of Science 搜，我建议直接试这些：
+
+```text
+"graph neural network" "AUV" "cooperative localization"
+```
+
+```text
+"underwater cooperative localization" "graph neural network"
+```
+
+```text
+"AUV" "multi-sensor fusion" "acoustic ranging" "localization"
+```
+
+```text
+"AUV" "INS" "DVL" "acoustic" "localization" "deep learning"
+```
+
+```text
+"temporal graph neural network" "cooperative localization"
+```
+
+```text
+"federated learning" "AUV" "cooperative localization"
+```
+
+```text
+"range-only" "AUV" "cooperative localization"
+```
+
+**检索思路**
+你可以分三层搜：
+
+```text
+第一层：AUV cooperative localization
+第二层：multi-sensor fusion / acoustic ranging / time delay
+第三层：GNN / TGNN / deep learning / federated learning
+```
+
+也就是先找“水下协同定位”领域，再往里面加“声学时延、多传感器融合”，最后加“GNN/深度学习”。
+
+一个很稳的最终检索式是：
+
+```text
+("AUV" OR "autonomous underwater vehicle") AND 
+("cooperative localization" OR "underwater localization") AND 
+("acoustic ranging" OR "time delay" OR "time of arrival") AND 
+("graph neural network" OR "deep learning" OR "multi-sensor fusion")
+```
+
+中文可以搜：
+
+```text
+("AUV" OR "自主水下航行器") AND 
+("协同定位" OR "水下定位") AND 
+("声学测距" OR "声学时延" OR "水声测距") AND 
+("图神经网络" OR "深度学习" OR "多传感器融合")
+```
 
 
 
