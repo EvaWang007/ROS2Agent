@@ -62,6 +62,33 @@ agent.invoke("Show me a list of topics that have publishers but no subscribers")
 
 For detailed information on configuring the LLM, please refer to our [Model Configuration Wiki page](https://github.com/nasa-jpl/rosa/wiki/Model-Configuration).
 
+## Reproducing This Repository On Another Server
+
+For this repository snapshot, use the checked-in `environment.yml` as the baseline environment:
+
+```bash
+conda env create -f environment.yml
+conda activate rosa
+pip install -e .[memory]
+```
+
+Then rebuild the ROS2 workspace from source instead of relying on checked-in generated artifacts:
+
+```bash
+source /opt/ros/<your_distro>/setup.bash
+cd nav_ws
+colcon build --symlink-install
+source install/setup.bash
+```
+
+If you plan to run the ROS2 navigation agent extension in `nav_ws/src/nav_agent_ros2`, make sure the target server also has:
+
+- ROS2 installed and sourced
+- `cv_bridge` available from the ROS installation
+- the checked-in `yolov8n.pt` weight file at the repository root
+
+The repository intentionally excludes generated `install/`, `log/`, and runtime trace directories so the environment can be reproduced cleanly from source.
+
 
 ## Adapting ROSA for Your Robot 🔧
 

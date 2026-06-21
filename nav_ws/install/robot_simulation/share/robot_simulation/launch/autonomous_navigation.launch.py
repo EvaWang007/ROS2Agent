@@ -1,1 +1,0 @@
-/home/evawang/Downloads/rosa-main/nav_ws/src/robot_simulation/launch/autonomous_navigation.launch.py

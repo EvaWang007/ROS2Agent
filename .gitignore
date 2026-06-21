@@ -6,3 +6,24 @@ dist/
 __pycache__/
 docs
 .DS_Store
+*.pyc
+*.pyo
+*.swp
+
+# Python and packaging artifacts
+*.egg-info/
+.pytest_cache/
+
+# ROS / colcon runtime artifacts
+install/
+log/
+logs/
+ros2_ws/install/
+ros2_ws/log/
+nav_ws/install/
+nav_ws/log/
+nav_ws/logs/
+nav_ws/nav_ws/logs/
+
+# Model/runtime caches
+.cache/

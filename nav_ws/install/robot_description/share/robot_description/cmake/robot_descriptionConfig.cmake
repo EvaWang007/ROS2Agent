@@ -1,1 +1,0 @@
-/home/evawang/Downloads/rosa-main/nav_ws/build/robot_description/ament_cmake_core/robot_descriptionConfig.cmake

@@ -21,6 +21,7 @@ setup(
         "rich",
         "pyinputplus",
         "jpl-rosa",
+        "ultralytics>=8.3.0",
     ],
     zip_safe=True,
     maintainer="evawang",
@@ -33,6 +34,8 @@ setup(
     entry_points={
         "console_scripts": [
             "nav_agent = nav_agent_ros2.nav_agent:main",
+            "yolo_detector = nav_agent_ros2.yolo_detector:main",
         ],
+        
     },
 )
